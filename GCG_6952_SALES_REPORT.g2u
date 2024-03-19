@@ -1,0 +1,301 @@
+﻿Program.Sub.ScreenSU.Start
+Gui.Form..Create(BaseForm)
+Gui.Form..Caption("Form")
+Gui.Form..Size(849,720)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..AlwaysOnTop(False)
+Gui.Form..FontName("Tahoma")
+Gui.Form..FontSize(8.25)
+Gui.Form..ControlBox(True)
+Gui.Form..MaxButton(True)
+Gui.Form..MinButton(True)
+Gui.Form..MousePointer(0)
+Gui.Form..Moveable(True)
+Gui.Form..Sizeable(True)
+Gui.Form..ShowInTaskBar(True)
+Gui.Form..TitleBar(True)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form.dtpDateStart.Create(DatePicker)
+Gui.Form.dtpDateStart.Enabled(True)
+Gui.Form.dtpDateStart.Visible(True)
+Gui.Form.dtpDateStart.Zorder(0)
+Gui.Form.dtpDateStart.Size(100,20)
+Gui.Form.dtpDateStart.Position(15,32)
+Gui.Form.dtpDateStart.CheckBox(False)
+Gui.Form.dtpDateStart.FontName("Tahoma")
+Gui.Form.dtpDateStart.FontSize(8.25)
+Gui.Form.dtpDateEnd.Create(DatePicker)
+Gui.Form.dtpDateEnd.Enabled(True)
+Gui.Form.dtpDateEnd.Visible(True)
+Gui.Form.dtpDateEnd.Zorder(0)
+Gui.Form.dtpDateEnd.Size(100,20)
+Gui.Form.dtpDateEnd.Position(158,32)
+Gui.Form.dtpDateEnd.CheckBox(False)
+Gui.Form.dtpDateEnd.FontName("Tahoma")
+Gui.Form.dtpDateEnd.FontSize(8.25)
+Gui.Form.chkIgnore.Create(CheckBox)
+Gui.Form.chkIgnore.Enabled(True)
+Gui.Form.chkIgnore.Visible(True)
+Gui.Form.chkIgnore.Zorder(0)
+Gui.Form.chkIgnore.Size(141,20)
+Gui.Form.chkIgnore.Position(15,64)
+Gui.Form.chkIgnore.Caption("Ignore Start Due Date")
+Gui.Form.chkIgnore.FontName("Tahoma")
+Gui.Form.chkIgnore.FontSize(8.25)
+Gui.Form.chkIgnore.Event(MouseUp,chkIgnore_MouseUp)
+Gui.Form.lbl1.Create(Label,"Start Due Date",True,72,13,0,15,16,True,0,"Tahoma",8.25,,0,0)
+Gui.Form.lbl1.BorderStyle(0)
+Gui.Form.lbl2.Create(Label,"End Due Date",True,66,13,0,158,16,True,0,"Tahoma",8.25,,0,0)
+Gui.Form.lbl2.BorderStyle(0)
+Gui.Form.GsgcMain.Create(GsGridControl)
+Gui.Form.GsgcMain.Enabled(True)
+Gui.Form.GsgcMain.Visible(True)
+Gui.Form.GsgcMain.Zorder(0)
+Gui.Form.GsgcMain.Size(833,592)
+Gui.Form.GsgcMain.Position(0,96)
+Gui.Form.GsgcMain.Anchor(15)
+Gui.Form.cmdRefresh.Create(Button)
+Gui.Form.cmdRefresh.Enabled(True)
+Gui.Form.cmdRefresh.Visible(True)
+Gui.Form.cmdRefresh.Zorder(0)
+Gui.Form.cmdRefresh.Size(75,23)
+Gui.Form.cmdRefresh.Position(323,30)
+Gui.Form.cmdRefresh.Caption("REFRESH")
+Gui.Form.cmdRefresh.FontName("Tahoma")
+Gui.Form.cmdRefresh.FontSize(8.25)
+Gui.Form.cmdRefresh.Event(Click,cmdRefresh_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+v.Global.bIgnoreDateStart.Declare(Boolean)
+v.Global.bFirstLoad.Declare(Boolean,True)
+Program.Sub.Preflight.End
+
+'ARC 6952
+'Cust: Manufacturing Resource Group
+
+'The customer would like a gridview summarizing, in dollars, the
+'remaining products left to ship on all open orders.
+
+'This script displays and manage the dashboard
+
+Program.Sub.Main.Start
+f.Intrinsic.Control.Try
+
+	Function.Intrinsic.UI.UsePixels ' Allows you to use Pixels instead of Twips throughout
+	'load data from BI table
+	f.Intrinsic.Control.CallSub(LoadDataBI)
+	gui.Form..Show
+'gui.Form..Visible(True)
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+
+'when first open, the dashboard will always load data from cache table for performance purpose
+'also format and add context menu
+Program.Sub.LoadDataBI.Start
+f.Intrinsic.Control.Try
+	v.Local.sSQL.Declare(String)
+	v.Local.sSQL.Set("select RTRIM(CUSTOMER) CUSTOMER, RTRIM(CUSTOMER_NAME) CUSTOMER_NAME, RTRIM(SALESPERSON) SALESPERSON, AMOUNT_REM from GCG_6952_BI  order by CUSTOMER")
+	f.ODBC.Connection!Con.OpenCompanyConnection
+	f.Data.DataTable.CreateFromSQL("dtCache", "con", v.Local.sSQL, True)
+	f.ODBC.Connection!Con.Close
+	
+	gui.Form.GsgcMain.AddGridviewFromDatatable("gvCache", "dtCache")
+	gui.Form.GsgcMain.MainView("gvCache")
+	
+	f.Intrinsic.Control.CallSub(FormatGrid)
+	f.Intrinsic.Control.CallSub(AddContextMenu)
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.LoadDataBI.End
+
+Program.Sub.AddContextMenu.Start
+f.Intrinsic.Control.Try
+	gui.Form..ContextMenuCreate("ctxMenu")
+	gui.Form.GsgcMain.ContextMenuAttach("ctxMenu")
+	gui.Form..ContextMenuAddItem("ctxMenu", "ExportToExcel",0, "Export To Excel")
+	gui.Form..ContextMenuSetItemEventHandler("ctxMenu", "ExportToExcel", "ExportToExcel")
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.AddContextMenu.End
+
+Program.Sub.FormatGrid.Start
+f.Intrinsic.Control.Try
+	gui.Form.GsgcMain.Visible(False)
+	gui.Form.GsgcMain.SetGridviewProperty("gvCache", v.Enum.GridViewPropertyNames!ReadOnly, True)
+	gui.Form.GsgcMain.SetGridviewProperty("gvCache", v.Enum.GridViewPropertyNames!Editable, False)
+	gui.Form.GsgcMain.SetGridviewProperty("gvCache", v.Enum.GridViewPropertyNames!EnableAppearanceOddRow, True)
+	gui.Form.GsgcMain.SetGridviewProperty("gvCache", v.Enum.GridViewPropertyNames!AllowColumnResizing, True)
+	gui.Form.GsgcMain.SetGridviewProperty("gvCache", v.Enum.GridViewPropertyNames!ColumnAutoWidth, False)
+	
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER_NAME", v.Enum.ColumnPropertyNames!Caption, "CUSTOMER NAME")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","AMOUNT_REM", v.Enum.ColumnPropertyNames!Caption, "AMOUNT UNSHIPPED")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","AMOUNT_REM", v.Enum.ColumnPropertyNames!DisplayCustomNumeric, "$###,###.00#")
+	
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER_NAME", v.Enum.ColumnPropertyNames!HeaderFontBold, True)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER", v.Enum.ColumnPropertyNames!HeaderFontBold, True)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","SALESPERSON", v.Enum.ColumnPropertyNames!HeaderFontBold, True)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","AMOUNT_REM", v.Enum.ColumnPropertyNames!HeaderFontBold, True)
+	
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER", v.Enum.ColumnPropertyNames!HeaderHAlignment, "Center")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER_NAME", v.Enum.ColumnPropertyNames!HeaderHAlignment, "Center")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","SALESPERSON", v.Enum.ColumnPropertyNames!HeaderHAlignment, "Center")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","AMOUNT_REM", v.Enum.ColumnPropertyNames!HeaderHAlignment, "Center")
+	
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER", v.Enum.ColumnPropertyNames!CellHAlignment, "Center")
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","SALESPERSON", v.Enum.ColumnPropertyNames!CellHAlignment, "Center")
+	
+	
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER", v.Enum.ColumnPropertyNames!MinWidth, 100)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","CUSTOMER_NAME", v.Enum.ColumnPropertyNames!MinWidth, 200)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","SALESPERSON", v.Enum.ColumnPropertyNames!MinWidth, 100)
+	gui.Form.GsgcMain.SetColumnProperty("gvCache","AMOUNT_REM", v.Enum.ColumnPropertyNames!MinWidth, 200)
+	
+	f.Intrinsic.Control.CallSub(Deserialize)
+	gui.Form.GsgcMain.Visible(True)
+	
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.FormatGrid.End
+
+Program.Sub.chkIgnore_MouseUp.Start
+f.Intrinsic.Control.Try
+	v.Global.bIgnoreDateStart.Set(v.Screen.Form!chkIgnore.Value)
+
+	f.Intrinsic.Control.If(v.Global.bIgnoreDateStart)
+		gui.Form.dtpDateStart.Enabled(False)
+	f.Intrinsic.Control.Else
+		gui.Form.dtpDateStart.Enabled(True)
+	f.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.chkIgnore_MouseUp.End
+
+
+Program.Sub.Catching.Start
+f.Intrinsic.Control.If(v.ODBC.con.Exists)
+	f.ODBC.Connection!Con.Close
+f.Intrinsic.Control.EndIf
+f.Intrinsic.UI.Msgbox(v.Ambient.ErrorDescription)
+Program.Sub.Catching.End
+
+Program.Sub.Form_UnLoad.Start
+f.Intrinsic.Control.If(v.ODBC.con.Exists)
+	f.ODBC.Connection!Con.Close
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.CallSub(Serialize)
+	
+f.Intrinsic.Control.End
+Program.Sub.Form_UnLoad.End
+
+
+'when click on refresh, get data fresh from newly-built query 
+'	params are Date Start and End pointing at Order Due Date
+'	if checkbox is checked, ignore Start Date
+Program.Sub.cmdRefresh_Click.Start
+f.Intrinsic.Control.Try
+	'Get Data & reformat grid
+	v.Local.sSQL.Declare(String)
+	v.Local.sDateStart.Declare(String)
+	v.Local.sDateEnd.Declare(String)
+	v.Local.sDateConstr.Declare(String)
+	
+	f.Intrinsic.Control.CallSub(Serialize)
+	
+	f.Intrinsic.String.Format(v.Screen.Form!dtpDateStart.Value, "YYYY-MM-DD", v.Local.sDateStart)
+	f.Intrinsic.String.Format(v.Screen.Form!dtpDateEnd.Value, "YYYY-MM-DD", v.Local.sDateEnd)
+			
+	f.Intrinsic.Control.If(v.Global.bIgnoreDateStart)
+		f.Intrinsic.String.Build(" where H.DATE_DUE <= '{0}'", v.Local.sDateEnd, v.Local.sDateConstr)
+	f.Intrinsic.Control.Else
+		f.Intrinsic.String.Build(" where H.DATE_DUE >= '{0}' and H.DATE_DUE <= '{1}'", v.Local.sDateStart, v.Local.sDateEnd, v.Local.sDateConstr)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.String.Build("select RTRIM(A.CUSTOMER) CUSTOMER, RTRIM(B.NAME_CUSTOMER) CUSTOMER_NAME, RTRIM(B.SALESPERSON) SALESPERSON, CAST(SUM(A.QTY_BO*A.PRICE) as FLOAT) as AMOUNT_REM from V_ORDER_LINES A left join V_CUSTOMER_MASTER B on A.CUSTOMER = B.CUSTOMER left join V_ORDER_HEADER H on A.ORDER_NO = H.ORDER_NO {0} group by A.CUSTOMER, NAME_CUSTOMER, SALESPERSON having AMOUNT_REM > 0 order by A.CUSTOMER;", v.Local.sDateConstr, v.Local.sSQL)
+	
+	f.ODBC.Connection!Con.OpenCompanyConnection
+	f.Intrinsic.Control.If(v.DataTable.dtCache.Exists)
+		f.Data.DataTable.Close("dtCache")
+	f.Intrinsic.Control.EndIf
+	f.Data.DataTable.CreateFromSQL("dtCache", "con", v.Local.sSQL, True)
+	f.ODBC.Connection!Con.Close
+	
+	f.Intrinsic.Control.If(v.DataTable.dtCache.RowCount,=,0)
+		f.Intrinsic.UI.Msgbox("No Data Found in This Period.", "No Record Found")
+	f.Intrinsic.Control.EndIf
+	
+	gui.Form.GsgcMain.AddGridviewFromDatatable("gvCache", "dtCache")
+	gui.Form.GsgcMain.MainView("gvCache")
+	
+	f.Intrinsic.Control.CallSub(FormatGrid)
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.cmdRefresh_Click.End
+
+
+Program.Sub.ExportToExcel.Start
+f.Intrinsic.Control.Try
+	v.Local.sFile.Declare(String)
+	v.Local.bExt.Declare(Boolean)
+	
+	'file dialog
+	f.Intrinsic.UI.ShowSaveFileDialog("", "Excel Files |*xls;*xlsx", "", v.Local.sFile)
+	
+	'export
+	f.Intrinsic.Control.If(v.Local.sFile,!=,"***CANCEL***")
+		f.Intrinsic.String.IsInString(v.Local.sFile, "xls",False, v.Local.bExt)
+		f.Intrinsic.Control.If(v.Local.bExt,=,False)
+			f.Intrinsic.String.Build("{0}.xlsx", v.Local.sFile, v.Local.sFile)
+		f.Intrinsic.Control.EndIf
+		gui.Form.GsgcMain.Export(v.Local.sFile, "xlsx")
+	f.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+f.Intrinsic.Control.EndTry
+Program.Sub.ExportToExcel.End
+
+
+Program.Sub.Serialize.Start
+F.Intrinsic.Control.Try
+	V.Local.sSerialize.Declare(String)
+	gui.Form.GsgcMain.Serialize("gvCache",V.Local.sSerialize)
+	F.Global.Registry.AddValue(V.Caller.User,V.Caller.CompanyCode,"gvCache",6952,1001,False,"Serialize",False,0,-999.0,1/1/1980,12:00:00 AM,V.Local.sSerialize)
+
+F.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+F.Intrinsic.Control.EndTry
+Program.Sub.Serialize.End
+
+Program.Sub.Deserialize.Start
+F.Intrinsic.Control.Try
+	V.Local.sSerialize.Declare(String)
+	F.Global.Registry.ReadValue(V.Caller.User,V.Caller.CompanyCode,"gvCache",6952,1001,6,"",V.Local.sSerialize)
+	F.Intrinsic.Control.If(V.Local.sSerialize.Trim,<>,"")
+		gui.Form.GsgcMain.Deserialize(V.Local.sSerialize)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+F.Intrinsic.Control.EndTry
+Program.Sub.Deserialize.End
+
+Program.Sub.Comments.Start
+${$5$}$3.0.0.0$}$1
+${$6$}$nle$}$20221027160106560$}$kjzCRYkA6UEoRnCwndYnRdOz1m+9YD5Yba8iJoj4lmsj8xGFzh1IRofTiAQz8PtC
+Program.Sub.Comments.End
