@@ -1,0 +1,78 @@
+﻿Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+'ARC 6952
+'Cust: Manufacturing Resource Group
+
+'The customer would like a gridview summarizing, in dollars, the
+'remaining products left to ship on all open orders.
+
+'This script runs and get the number at 6:00 AM daily to generate BI data ahead of time. 
+'During the day, user will see this data, unless they refresh with new inputs (date)
+
+Program.Sub.Main.Start
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare(String)
+	v.Local.sSQL.Declare(String)
+	
+	v.Local.sSQL.Set("insert into GCG_6952_BI (CUSTOMER, CUSTOMER_NAME, SALESPERSON, AMOUNT_REM) select RTRIM(A.CUSTOMER) CUSTOMER_CODE, RTRIM(B.NAME_CUSTOMER) NAME_CUSTOMER, RTRIM(B.SALESPERSON) SALESPERSON, CAST(SUM(A.QTY_BO*A.PRICE) as FLOAT) as AMOUNT_REM from V_ORDER_LINES A left join V_CUSTOMER_MASTER B on A.CUSTOMER = B.CUSTOMER group by CUSTOMER_CODE, NAME_CUSTOMER, SALESPERSON having AMOUNT_REM > 0")
+	
+	f.ODBC.Connection!Con.OpenCompanyConnection
+		f.ODBC.Connection!Con.Execute("delete from GCG_6952_BI where 1=1")
+		f.ODBC.Connection!Con.Execute(v.Local.sSQL)
+	f.ODBC.Connection!Con.Close	
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.Control.CallSub(Catching)
+	'log
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.Control.CallSub(ErrorLog, "argMsg", v.Local.sError)
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Catching.Start
+f.Intrinsic.Control.If(v.ODBC.Con.Exists)
+	f.ODBC.Connection!Con.Close
+f.Intrinsic.Control.EndIf
+Program.Sub.Catching.End
+
+'arg: argMsg
+Program.Sub.ErrorLog.Start
+	v.Local.sFileName.Declare(String)
+	v.Local.isFileExists.Declare(Boolean)
+	v.Local.isDirExists.Declare(Boolean)
+	v.Local.sLogMsg.Declare(String)
+	v.Local.sARC.Declare(String)
+	
+	v.Local.sARC.Set("6952")
+
+	'check if Dir exists
+	f.Intrinsic.String.Build("{0}\CUSTOM\{1}\{2}", v.Caller.GlobalDir, v.Local.sARC, "Error Log", v.Local.sFileName)
+	f.Intrinsic.File.DirExists(v.Local.sFileName, v.Local.isDirExists)
+	f.Intrinsic.Control.If(v.Local.isDirExists,=,False)
+		f.Intrinsic.File.CreateDir(v.Local.sFileName)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.String.Build("{0}\{1}{2}.txt", v.Local.sFileName, "Error Log on  ",v.Ambient.Now.FormatYYYYMMDD-HHNNSS,v.Local.sFileName)
+	
+	'check file exist
+	f.Intrinsic.File.Exists(v.Local.sFileName, v.Local.isFileExists)
+	
+	f.Intrinsic.Control.If(v.Local.isFileExists,=,False)
+		f.Intrinsic.File.String2File(v.Local.sFileName, "Start Log")
+		f.Intrinsic.File.Append2File(v.Local.sFileName, v.Ambient.NewLine)
+		f.Intrinsic.File.Append2File(v.Local.sFileName, "********************")
+		f.Intrinsic.File.Append2File(v.Local.sFileName, v.Ambient.NewLine)
+		
+	f.Intrinsic.Control.EndIf
+	
+	'append
+	v.Local.sLogMsg.Set(v.Args.argMsg)
+	f.Intrinsic.String.Build("{0} {1}: {2}", v.Ambient.Now.FormatMM/DD/YYYY, v.Ambient.Now.FormatHH:NN:SS, v.Local.sLogMsg, v.Local.sLogMsg)
+	f.Intrinsic.File.Append2File(v.Local.sFileName, v.Local.sLogMsg)
+
+Program.Sub.ErrorLog.End
+
+Program.Sub.Comments.Start
+${$5$}$3.0.0.0$}$1
+${$6$}$nle$}$20221027101437161$}$kjzCRYkA6UEoRnCwndYnRdOz1m+9YD5YTWZGGu9yN7y0fSEs85hxgGj1pY/em4hN
+Program.Sub.Comments.End
